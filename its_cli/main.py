@@ -1,23 +1,35 @@
 """
 Command-line interface for ITS Compiler with comprehensive security enhancements.
-Fixed for cross-platform Unicode compatibility.
+Fixed for cross-platform Unicode compatibility and URL template support.
 """
 
 import json
+import os
 import platform
 import sys
+import tempfile
 import time
+import urllib.parse
+import urllib.request
 from pathlib import Path as PathType
 from typing import Any, Dict, Optional, Tuple
 
 import click
 
 # Import from the core library
-from its_compiler import ITSCompiler, __supported_schema_version__
+from its_compiler import (
+    AllowlistManager,
+    ITSCompilationError,
+    ITSCompiler,
+    ITSConfig,
+    ITSError,
+    ITSSecurityError,
+    ITSValidationError,
+    SecurityConfig,
+    TrustLevel,
+    __supported_schema_version__,
+)
 from its_compiler import __version__ as core_version
-from its_compiler.core.exceptions import ITSCompilationError, ITSError, ITSSecurityError, ITSValidationError
-from its_compiler.core.models import ITSConfig
-from its_compiler.security import AllowlistManager, SecurityConfig, TrustLevel
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
@@ -41,21 +53,12 @@ def setup_safe_console() -> Tuple[Console, bool]:
 
 
 def safe_print(message: Any, style: Optional[str] = None, highlight: Optional[bool] = None) -> None:
-    """Print message safely, handling Unicode encoding errors."""
+    """Print message safely with Rich formatting."""
     try:
         console.print(message, style=style, highlight=highlight)
     except Exception:
-        # Fallback to plain print with safe message
-        safe_message = str(message)
-        for old, new in [
-            ("✓", "[OK]"),
-            ("✗", "[FAIL]"),
-            ("⚠", "[WARN]"),
-            ("ℹ", "[INFO]"),
-            ("•", "*"),
-        ]:
-            safe_message = safe_message.replace(old, new)
-        print(safe_message)
+        # Fallback to plain print
+        print(str(message))
 
 
 def create_safe_progress_context(description: str, disable_on_windows: bool = True) -> Any:
@@ -106,19 +109,65 @@ except Exception:
     CAN_USE_UNICODE = False
 
 
-def get_symbols() -> Dict[str, str]:
-    """Get safe symbols for status messages."""
-    symbols = {
-        "ok": ("✓", "[OK]"),
-        "fail": ("✗", "[FAIL]"),
-        "warn": ("⚠", "[WARN]"),
-        "info": ("ℹ", "[INFO]"),
-        "bullet": ("•", "*"),
-    }
-    return {k: v[0] if CAN_USE_UNICODE else v[1] for k, v in symbols.items()}
+def get_status_styles() -> Dict[str, str]:
+    """Get Rich styles for status messages."""
+    return {"success": "bold green", "error": "bold red", "warning": "bold yellow", "info": "bold blue", "dim": "dim"}
 
 
-SYMBOLS = get_symbols()
+STATUS_STYLES = get_status_styles()
+
+
+def is_url(path: str) -> bool:
+    """Check if the path is a URL."""
+    try:
+        result = urllib.parse.urlparse(path)
+        return all([result.scheme, result.netloc])
+    except Exception:
+        return False
+
+
+def download_template(url: str, security_config: SecurityConfig) -> str:
+    """Download template from URL and return local temp file path."""
+    try:
+        # Basic URL validation
+        if not url.startswith(("https://", "http://")):
+            raise ValueError("Only HTTP/HTTPS URLs are supported")
+
+        if not security_config.network.allow_http and url.startswith("http://"):
+            raise ValueError("HTTP URLs are not allowed. Use HTTPS or enable --allow-http")
+
+        safe_print(f"[INFO] Downloading template from: {url}", style=STATUS_STYLES["info"])
+
+        # Create a temporary file
+        temp_file = tempfile.NamedTemporaryFile(mode="w+", suffix=".json", delete=False)
+        temp_path = temp_file.name
+        temp_file.close()
+
+        # Download with timeout
+        timeout = getattr(security_config.network, "request_timeout", 30)
+
+        with urllib.request.urlopen(url, timeout=timeout) as response:
+            if response.status != 200:
+                raise ValueError(f"Failed to download: HTTP {response.status}")
+
+            content = response.read().decode("utf-8")
+
+            # Validate it's JSON
+            try:
+                json.loads(content)
+            except json.JSONDecodeError:
+                raise ValueError("Downloaded content is not valid JSON")
+
+            # Write to temp file
+            with open(temp_path, "w", encoding="utf-8") as f:
+                f.write(content)
+
+        safe_print(f"[INFO] Template downloaded to temporary file", style=STATUS_STYLES["info"])
+        return temp_path
+
+    except Exception as e:
+        safe_print(f"[ERROR] Failed to download template: {e}", style=STATUS_STYLES["error"])
+        sys.exit(1)
 
 
 class TemplateChangeHandler(FileSystemEventHandler):
@@ -144,7 +193,7 @@ class TemplateChangeHandler(FileSystemEventHandler):
 
         changed_path = PathType(event.src_path)
         if changed_path.name == self.template_path.name:
-            safe_print(f"[yellow]File changed: {changed_path}[/yellow]")
+            safe_print(f"[INFO] File changed: {changed_path}", style=STATUS_STYLES["info"])
             try:
                 success = compile_template(
                     str(self.template_path),
@@ -160,9 +209,9 @@ class TemplateChangeHandler(FileSystemEventHandler):
                 )
 
                 if success:
-                    safe_print(f"[green]{SYMBOLS['ok']} Watch compilation successful[/green]")
+                    safe_print("[SUCCESS] Watch compilation successful", style=STATUS_STYLES["success"])
                 else:
-                    safe_print(f"[blue]{SYMBOLS['info']} Waiting for fixes... (Ctrl+C to stop)[/blue]")
+                    safe_print("[INFO] Waiting for fixes... (Ctrl+C to stop)", style=STATUS_STYLES["info"])
             except (
                 ITSSecurityError,
                 ITSValidationError,
@@ -170,23 +219,23 @@ class TemplateChangeHandler(FileSystemEventHandler):
                 ITSError,
             ) as e:
                 # Handle ITS-specific errors gracefully in watch mode
-                safe_print(f"[red]{SYMBOLS['fail']} Compilation failed: {e}[/red]")
+                safe_print(f"[ERROR] Compilation failed: {e}", style=STATUS_STYLES["error"])
                 if self.verbose:
                     if hasattr(e, "details") and e.details:
-                        safe_print(f"[red]Details: {e.details}[/red]")
+                        safe_print(f"Details: {e.details}", style=STATUS_STYLES["dim"])
                     if hasattr(e, "path") and e.path:
-                        safe_print(f"[red]Path: {e.path}[/red]")
-                safe_print(f"[blue]{SYMBOLS['info']} Continuing to watch for changes...[/blue]")
+                        safe_print(f"Path: {e.path}", style=STATUS_STYLES["dim"])
+                safe_print("[INFO] Continuing to watch for changes...", style=STATUS_STYLES["info"])
             except Exception as e:
                 # Handle any other unexpected errors
-                safe_print(f"[red]{SYMBOLS['fail']} Unexpected error: {e}[/red]")
+                safe_print(f"[ERROR] Unexpected error: {e}", style=STATUS_STYLES["error"])
                 if self.verbose:
                     import traceback
 
-                    safe_print("[red]Error details:[/red]")
+                    safe_print("Error details:", style=STATUS_STYLES["dim"])
                     for line in traceback.format_exc().splitlines():
-                        safe_print(f"[red]  {line}[/red]")
-                safe_print(f"[blue]{SYMBOLS['info']} Continuing to watch for changes...[/blue]")
+                        safe_print(f"  {line}", style=STATUS_STYLES["dim"])
+                safe_print("[INFO] Continuing to watch for changes...", style=STATUS_STYLES["info"])
 
 
 def load_variables(variables_path: str) -> Dict[str, Any]:
@@ -196,14 +245,14 @@ def load_variables(variables_path: str) -> Dict[str, Any]:
 
         # Basic security checks on variables file
         if variables_file.stat().st_size > 10 * 1024 * 1024:  # 10MB limit
-            safe_print(f"[red]Variables file too large: {variables_path}[/red]")
+            safe_print(f"[ERROR] Variables file too large: {variables_path}", style=STATUS_STYLES["error"])
             sys.exit(1)
 
         with open(variables_path, "r", encoding="utf-8") as f:
             variables = json.load(f)
 
         if not isinstance(variables, dict):
-            safe_print("[red]Variables file must contain a JSON object[/red]")
+            safe_print("[ERROR] Variables file must contain a JSON object", style=STATUS_STYLES["error"])
             sys.exit(1)
 
         return variables
@@ -292,41 +341,43 @@ def handle_allowlist_commands(
                         safe_print(f"  {key.replace('_', ' ').title()}: {value}")
 
             if stats.get("most_used"):
-                safe_print("\nMost Used Schemas:")
+                safe_print("\nMost Used Schemas:", style=STATUS_STYLES["info"])
                 for schema in stats["most_used"]:
-                    safe_print(f"  {SYMBOLS['bullet']} {schema['url']} (used {schema['use_count']} times)")
+                    safe_print(f"  • {schema['url']} (used {schema['use_count']} times)")
 
         if add_trusted_schema:
             allowlist_manager.add_trusted_url(add_trusted_schema, TrustLevel.PERMANENT, "Added via CLI")
-            safe_print(f"[green]{SYMBOLS['ok']} Added trusted schema: {add_trusted_schema}[/green]")
+            safe_print(f"[SUCCESS] Added trusted schema: {add_trusted_schema}", style=STATUS_STYLES["success"])
 
         if remove_schema:
             if allowlist_manager.remove_url(remove_schema):
-                safe_print(f"[green]{SYMBOLS['ok']} Removed schema: {remove_schema}[/green]")
+                safe_print(f"[SUCCESS] Removed schema: {remove_schema}", style=STATUS_STYLES["success"])
             else:
-                safe_print(f"[yellow]Schema not found in allowlist: {remove_schema}[/yellow]")
+                safe_print(f"[WARNING] Schema not found in allowlist: {remove_schema}", style=STATUS_STYLES["warning"])
 
         if export_allowlist:
             allowlist_manager.export_allowlist(export_allowlist)
-            safe_print(f"[green]{SYMBOLS['ok']} Exported allowlist to: {export_allowlist}[/green]")
+            safe_print(f"[SUCCESS] Exported allowlist to: {export_allowlist}", style=STATUS_STYLES["success"])
 
         if import_allowlist:
             imported_count = allowlist_manager.import_allowlist(import_allowlist, merge=merge_allowlist)
             mode = "merged" if merge_allowlist else "imported"
             safe_print(
-                f"[green]{SYMBOLS['ok']} {mode.title()} {imported_count} entries from: {import_allowlist}[/green]"
+                f"[SUCCESS] {mode.title()} {imported_count} entries from: {import_allowlist}",
+                style=STATUS_STYLES["success"],
             )
 
         if cleanup_allowlist:
             removed_count = allowlist_manager.cleanup_old_entries(days=older_than)
             safe_print(
-                f"[green]{SYMBOLS['ok']} Cleaned up {removed_count} old entries (older than {older_than} days)[/green]"
+                f"[SUCCESS] Cleaned up {removed_count} old entries (older than {older_than} days)",
+                style=STATUS_STYLES["success"],
             )
 
         return True
 
     except Exception as e:
-        safe_print(f"[red]Error managing allowlist: {e}[/red]")
+        safe_print(f"[ERROR] Error managing allowlist: {e}", style=STATUS_STYLES["error"])
         sys.exit(1)
 
 
@@ -350,10 +401,12 @@ def compile_template(
         try:
             variables = load_variables(variables_path)
             if verbose:
-                safe_print(f"[blue]Loaded {len(variables)} variables from {variables_path}[/blue]")
+                safe_print(
+                    f"[INFO] Loaded {len(variables)} variables from {variables_path}", style=STATUS_STYLES["info"]
+                )
         except Exception as e:
             error_msg = f"Failed to load variables: {e}"
-            safe_print(f"[red]{error_msg}[/red]")
+            safe_print(f"[ERROR] {error_msg}", style=STATUS_STYLES["error"])
             if not watch_mode:
                 sys.exit(1)
             return False
@@ -367,14 +420,14 @@ def compile_template(
         # Show security status if verbose
         if verbose:
             security_status = compiler.get_security_status()
-            safe_print("[blue]Security Configuration:[/blue]")
+            safe_print("Security Configuration:", style=STATUS_STYLES["info"])
             safe_print(f"  HTTP allowed: {security_config.network.allow_http}")
             safe_print(f"  Interactive allowlist: {security_config.allowlist.interactive_mode}")
             safe_print(f"  Block localhost: {security_config.network.block_localhost}")
 
             enabled_features = [k for k, v in security_status["features"].items() if v]
             if enabled_features:
-                safe_print(f"[blue]Security Features: {', '.join(enabled_features)}[/blue]")
+                safe_print(f"Security Features: {', '.join(enabled_features)}", style=STATUS_STYLES["info"])
 
         start_time = time.time()
 
@@ -386,20 +439,20 @@ def compile_template(
                 progress.update(task, completed=True)
 
             if validation_result.is_valid:
-                safe_print(f"[green]{SYMBOLS['ok']} Template is valid[/green]")
+                safe_print("[SUCCESS] Template is valid", style=STATUS_STYLES["success"])
                 if validation_result.warnings and verbose:
                     for warning in validation_result.warnings:
-                        safe_print(f"[yellow]{SYMBOLS['warn']} Warning: {warning}[/yellow]")
+                        safe_print(f"[WARNING] {warning}", style=STATUS_STYLES["warning"])
                 if validation_result.security_issues and verbose:
                     for issue in validation_result.security_issues:
-                        safe_print(f"[orange]{SYMBOLS['warn']} Security: {issue}[/orange]")
+                        safe_print(f"[WARNING] Security: {issue}", style=STATUS_STYLES["warning"])
                 return True
             else:
-                safe_print(f"[red]{SYMBOLS['fail']} Template validation failed[/red]")
+                safe_print("[ERROR] Template validation failed", style=STATUS_STYLES["error"])
                 for error in validation_result.errors:
-                    safe_print(f"[red]Error: {error}[/red]")
+                    safe_print(f"Error: {error}", style=STATUS_STYLES["error"])
                 for issue in validation_result.security_issues:
-                    safe_print(f"[red]Security: {issue}[/red]")
+                    safe_print(f"Security: {issue}", style=STATUS_STYLES["error"])
                 if not watch_mode:
                     sys.exit(1)
                 return False
@@ -412,12 +465,14 @@ def compile_template(
 
             # Show compilation success
             compilation_time = time.time() - start_time
-            safe_print(f"[green]{SYMBOLS['ok']} Template compiled successfully ({compilation_time:.2f}s)[/green]")
+            safe_print(
+                f"[SUCCESS] Template compiled successfully ({compilation_time:.2f}s)", style=STATUS_STYLES["success"]
+            )
 
             # Show security metrics, overrides, warnings, etc.
             if verbose:
                 if compilation_result.overrides:
-                    safe_print("[yellow]Type Overrides:[/yellow]")
+                    safe_print("Type Overrides:", style=STATUS_STYLES["warning"])
                     for type_override in compilation_result.overrides:
                         safe_print(
                             (
@@ -428,7 +483,7 @@ def compile_template(
                         )
 
                 if compilation_result.warnings:
-                    safe_print("[yellow]Warnings:[/yellow]")
+                    safe_print("Warnings:", style=STATUS_STYLES["warning"])
                     for warning in compilation_result.warnings:
                         safe_print(f"  {warning}")
 
@@ -439,7 +494,7 @@ def compile_template(
                 # Security check on output path
                 if not _is_safe_output_path(output_file):
                     error_msg = f"Unsafe output path: {output_path}"
-                    safe_print(f"[red]{error_msg}[/red]")
+                    safe_print(f"[ERROR] {error_msg}", style=STATUS_STYLES["error"])
                     if not watch_mode:
                         sys.exit(1)
                     return False
@@ -448,10 +503,10 @@ def compile_template(
                     output_file.parent.mkdir(parents=True, exist_ok=True)
                     with open(output_file, "w", encoding="utf-8") as f:
                         f.write(compilation_result.prompt)
-                    safe_print(f"[blue]Output written to: {output_path}[/blue]")
+                    safe_print(f"[INFO] Output written to: {output_path}", style=STATUS_STYLES["info"])
                 except PermissionError:
                     error_msg = f"Permission denied writing to: {output_path}"
-                    safe_print(f"[red]{error_msg}[/red]")
+                    safe_print(f"[ERROR] {error_msg}", style=STATUS_STYLES["error"])
                     if not watch_mode:
                         sys.exit(1)
                     return False
@@ -466,48 +521,48 @@ def compile_template(
                 report = compiler.generate_security_report(template_path)
                 with open(security_report_path, "w", encoding="utf-8") as f:
                     json.dump(report.to_dict(), f, indent=2)
-                safe_print(f"[blue]Security report written to: {security_report_path}[/blue]")
+                safe_print(f"[INFO] Security report written to: {security_report_path}", style=STATUS_STYLES["info"])
             except Exception as e:
-                safe_print(f"[yellow]Failed to generate security report: {e}[/yellow]")
+                safe_print(f"[WARNING] Failed to generate security report: {e}", style=STATUS_STYLES["warning"])
 
         return True
 
     except ITSSecurityError as e:
-        safe_print(f"[red]Security Error: {e.get_user_message()}[/red]")
+        safe_print(f"[ERROR] Security Error: {e.get_user_message()}", style=STATUS_STYLES["error"])
         if verbose and e.threat_type:
-            safe_print(f"[red]Threat Type: {e.threat_type}[/red]")
+            safe_print(f"Threat Type: {e.threat_type}", style=STATUS_STYLES["dim"])
         if not watch_mode:
             sys.exit(1)
         return False
 
     except ITSValidationError as e:
-        safe_print(f"[red]Validation Error: {e.message}[/red]")
+        safe_print(f"[ERROR] Validation Error: {e.message}", style=STATUS_STYLES["error"])
         if e.path:
-            safe_print(f"[red]Path: {e.path}[/red]")
+            safe_print(f"Path: {e.path}", style=STATUS_STYLES["dim"])
         for error in e.validation_errors:
-            safe_print(f"[red]  {SYMBOLS['bullet']} {error}[/red]")
+            safe_print(f"  • {error}", style=STATUS_STYLES["error"])
         for issue in e.security_issues:
-            safe_print(f"[red]  {SYMBOLS['bullet']} Security: {issue}[/red]")
+            safe_print(f"  • Security: {issue}", style=STATUS_STYLES["error"])
         if not watch_mode:
             sys.exit(1)
         return False
 
     except ITSCompilationError as e:
-        safe_print(f"[red]Compilation Error: {e.get_context_message()}[/red]")
+        safe_print(f"[ERROR] Compilation Error: {e.get_context_message()}", style=STATUS_STYLES["error"])
         if not watch_mode:
             sys.exit(1)
         return False
 
     except ITSError as e:
-        safe_print(f"[red]ITS Error: {e.get_user_message()}[/red]")
+        safe_print(f"[ERROR] ITS Error: {e.get_user_message()}", style=STATUS_STYLES["error"])
         if verbose:
-            safe_print(f"[red]Details: {e.details}[/red]")
+            safe_print(f"Details: {e.details}", style=STATUS_STYLES["dim"])
         if not watch_mode:
             sys.exit(1)
         return False
 
     except Exception as e:
-        safe_print(f"[red]Unexpected error: {e}[/red]")
+        safe_print(f"[ERROR] Unexpected error: {e}", style=STATUS_STYLES["error"])
         if verbose:
             import traceback
 
@@ -548,7 +603,7 @@ def _is_safe_output_path(output_path: PathType) -> bool:
 
 
 @click.command()
-@click.argument("template_file", type=click.Path(exists=True), required=False)
+@click.argument("template_file", type=str, required=False)
 @click.option(
     "-o",
     "--output",
@@ -623,7 +678,7 @@ def _is_safe_output_path(output_path: PathType) -> bool:
 )
 @click.version_option(version=f"CLI: {__version__}, Core: {core_version}")
 def main(
-    template_file: Optional[PathType],
+    template_file: Optional[str],
     output: Optional[PathType],
     variables: Optional[PathType],
     watch: bool,
@@ -648,7 +703,7 @@ def main(
     """
     ITS Compiler CLI - Convert ITS templates to AI prompts with security controls.
 
-    TEMPLATE_FILE: Path to the ITS template JSON file to compile (required for compilation).
+    TEMPLATE_FILE: Path to the ITS template JSON file to compile, or URL to download from.
     """
 
     # Handle --supported-schema-version flag
@@ -665,7 +720,7 @@ def main(
     config_warnings = security_config.validate()
     if config_warnings and verbose:
         for warning in config_warnings:
-            safe_print(f"[yellow]{SYMBOLS['warn']} Config Warning: {warning}[/yellow]")
+            safe_print(f"[WARNING] Config Warning: {warning}", style=STATUS_STYLES["warning"])
 
     # Handle allowlist management commands
     if handle_allowlist_commands(
@@ -683,49 +738,79 @@ def main(
 
     # Template file is required for compilation/validation
     if not template_file:
-        safe_print("[red]Error: Template file is required for compilation[/red]")
-        safe_print("Use --help for available commands or provide a template file.")
+        safe_print("[ERROR] Template file is required for compilation", style=STATUS_STYLES["error"])
+        safe_print("Use --help for available commands or provide a template file or URL.")
         sys.exit(1)
+
+    # Handle URL vs local file
+    temp_file_path = None
+    actual_template_path = template_file
+
+    if is_url(template_file):
+        # Download from URL
+        temp_file_path = download_template(template_file, security_config)
+        actual_template_path = temp_file_path
+    else:
+        # Validate local file exists
+        if not PathType(template_file).exists():
+            safe_print(f"[ERROR] Template file not found: {template_file}", style=STATUS_STYLES["error"])
+            sys.exit(1)
 
     if watch and validate_only:
         raise click.ClickException("Cannot use --watch with --validate-only")
 
-    # Initial compilation
-    compile_template(
-        str(template_file),
-        str(output) if output else None,
-        str(variables) if variables else None,
-        validate_only,
-        verbose,
-        watch,
-        no_cache,
-        security_config,
-        str(security_report) if security_report else None,
-    )
+    if watch and is_url(template_file):
+        raise click.ClickException("Cannot use --watch with URL templates")
 
-    # Watch mode
-    if watch:
-        safe_print(f"\n[blue]Watching {template_file} for changes... (Press Ctrl+C to stop)[/blue]")
-
-        event_handler = TemplateChangeHandler(
-            str(template_file),
+    try:
+        # Initial compilation
+        compile_template(
+            actual_template_path,
             str(output) if output else None,
             str(variables) if variables else None,
+            validate_only,
             verbose,
+            watch,
+            no_cache,
             security_config,
+            str(security_report) if security_report else None,
         )
 
-        observer = Observer()
-        observer.schedule(event_handler, str(template_file.parent), recursive=False)
-        observer.start()
+        # Watch mode (only for local files)
+        if watch:
+            safe_print(
+                f"\n[INFO] Watching {template_file} for changes... (Press Ctrl+C to stop)", style=STATUS_STYLES["info"]
+            )
 
-        try:
-            while True:
-                time.sleep(1)
-        except KeyboardInterrupt:
-            safe_print(f"\n[yellow]{SYMBOLS['warn']} Stopping watch mode...[/yellow]")
-            observer.stop()
-        observer.join()
+            event_handler = TemplateChangeHandler(
+                actual_template_path,
+                str(output) if output else None,
+                str(variables) if variables else None,
+                verbose,
+                security_config,
+            )
+
+            observer = Observer()
+            observer.schedule(event_handler, str(PathType(actual_template_path).parent), recursive=False)
+            observer.start()
+
+            try:
+                while True:
+                    time.sleep(1)
+            except KeyboardInterrupt:
+                safe_print(f"\n[WARNING] Stopping watch mode...", style=STATUS_STYLES["warning"])
+                observer.stop()
+            observer.join()
+
+    finally:
+        # Clean up temporary file if we downloaded one
+        if temp_file_path:
+            try:
+                os.unlink(temp_file_path)
+                if verbose:
+                    safe_print("[INFO] Cleaned up temporary file", style=STATUS_STYLES["info"])
+            except Exception:
+                pass  # Ignore cleanup errors
 
 
 if __name__ == "__main__":

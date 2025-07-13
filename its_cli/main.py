@@ -162,7 +162,7 @@ def download_template(url: str, security_config: SecurityConfig) -> str:
             with open(temp_path, "w", encoding="utf-8") as f:
                 f.write(content)
 
-        safe_print(f"[INFO] Template downloaded to temporary file", style=STATUS_STYLES["info"])
+        safe_print("Template downloaded to temporary file", style=STATUS_STYLES["info"])
         return temp_path
 
     except Exception as e:
@@ -798,7 +798,7 @@ def main(
                 while True:
                     time.sleep(1)
             except KeyboardInterrupt:
-                safe_print(f"\n[WARNING] Stopping watch mode...", style=STATUS_STYLES["warning"])
+                safe_print("\n[WARNING] Stopping watch mode...", style=STATUS_STYLES["warning"])
                 observer.stop()
             observer.join()
 

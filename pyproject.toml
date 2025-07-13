@@ -143,3 +143,7 @@ exclude = [
     "dist",
     "*.egg-info",
 ]
+
+[tool.bandit]
+exclude_dirs = ["test", "tests", ".venv", "venv"]
+skips = ["B101"]                                  # Skip assert_used test

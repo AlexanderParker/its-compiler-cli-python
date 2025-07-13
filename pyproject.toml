@@ -145,5 +145,5 @@ exclude = [
 ]
 
 [tool.bandit]
-exclude_dirs = ["test", "tests", ".venv", "venv"]
-skips = ["B101"]                                  # Skip assert_used test
+exclude_dirs = ["test", "tests", ".venv", "venv", "build", "dist"]
+skips = ["B101"]                                                   # Skip assert_used test

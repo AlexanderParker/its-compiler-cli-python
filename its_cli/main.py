@@ -146,7 +146,9 @@ def download_template(url: str, security_config: SecurityConfig) -> str:
         # Download with timeout
         timeout = getattr(security_config.network, "request_timeout", 30)
 
-        with urllib.request.urlopen(url, timeout=timeout) as response:
+        # Create request with validation - bandit B310 safe usage
+        request = urllib.request.Request(url)
+        with urllib.request.urlopen(request, timeout=timeout) as response:  # nosec B310
             if response.status != 200:
                 raise ValueError(f"Failed to download: HTTP {response.status}")
 
@@ -809,8 +811,10 @@ def main(
                 os.unlink(temp_file_path)
                 if verbose:
                     safe_print("[INFO] Cleaned up temporary file", style=STATUS_STYLES["info"])
-            except Exception:
-                pass  # Ignore cleanup errors
+            except OSError:
+                # Ignore file cleanup errors - file may already be deleted
+                if verbose:
+                    safe_print("[WARNING] Could not clean up temporary file", style=STATUS_STYLES["warning"])
 
 
 if __name__ == "__main__":

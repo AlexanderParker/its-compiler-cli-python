@@ -1,0 +1,107 @@
+name: CLI Integration Tests
+on:
+  push:
+    branches: [main, develop, feature/*]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+  actions: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ matrix.python-version }}-${{ hashFiles('pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-${{ matrix.python-version }}-
+            ${{ runner.os }}-pip-
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Set up test environment
+        run: |
+          # Configure security settings for CI
+          echo "ITS_INTERACTIVE_ALLOWLIST=false" >> $GITHUB_ENV
+          echo "ITS_AUTO_APPROVE_CI=true" >> $GITHUB_ENV
+          echo "ITS_ALLOW_HTTP=false" >> $GITHUB_ENV
+          echo "ITS_BLOCK_LOCALHOST=true" >> $GITHUB_ENV
+          echo "ITS_REQUEST_TIMEOUT=30" >> $GITHUB_ENV
+      - name: Verify installation
+        run: |
+          its-compile --help
+          its-compile --supported-schema-version
+      - name: Run integration tests
+        run: |
+          python test_runner.py --verbose --junit-xml test-results-${{ matrix.python-version }}.xml
+      - name: Run security tests
+        run: |
+          python test_runner.py --category security --verbose
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-${{ matrix.python-version }}
+          path: test-results-${{ matrix.python-version }}.xml
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-lint-${{ hashFiles('pyproject.toml') }}
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+          pip install flake8
+      - name: Run black
+        run: black --check --diff .
+      - name: Run flake8
+        run: flake8 its_cli/ test_runner.py
+      - name: Run type checking
+        run: mypy its_cli/ --ignore-missing-imports || true
+
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install build dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install build twine
+      - name: Build package
+        run: python -m build
+      - name: Check package
+        run: twine check dist/*
+      - name: Test package installation
+        run: |
+          pip install dist/*.whl
+          its-compile --help

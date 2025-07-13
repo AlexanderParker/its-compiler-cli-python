@@ -1,0 +1,145 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "its-compiler-cli-python"
+version = "0.1.0"
+description = "Command-line interface for ITS Compiler Python - converts ITS templates to AI prompts"
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "Alexander Parker", email = "its-cli@parker.im" }]
+maintainers = [{ name = "Alexander Parker", email = "its-cli@parker.im" }]
+keywords = [
+    "its",
+    "instruction",
+    "template",
+    "specification",
+    "ai",
+    "prompt",
+    "cli",
+    "command-line",
+    "compilation",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Text Processing :: Markup",
+    "Topic :: System :: Shells",
+    "Environment :: Console",
+]
+requires-python = ">=3.9"
+dependencies = [
+    "its-compiler-python>=0.1.2",
+    "click>=8.0.0",
+    "rich>=13.0.0",
+    "watchdog>=3.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    # Testing
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "pytest-mock>=3.10.0",
+    "pytest-timeout>=2.1.0",
+
+    # Code quality
+    "black>=22.0.0",
+    "isort>=5.12.0",
+    "flake8>=6.0.0",
+    "mypy>=1.0.0",
+
+    # Development tools
+    "build>=0.10.0",
+    "twine>=4.0.0",
+]
+
+all = ["its-compiler-cli-python[dev]"]
+
+[project.urls]
+Homepage = "https://github.com/alexanderparker/its-compiler-cli-python"
+Repository = "https://github.com/alexanderparker/its-compiler-cli-python.git"
+"Bug Tracker" = "https://github.com/alexanderparker/its-compiler-cli-python/issues"
+"Core Library" = "https://github.com/alexanderparker/its-compiler-python"
+
+[project.scripts]
+its-compile = "its_cli.main:main"
+
+[tool.setuptools]
+package-dir = { "" = "." }
+
+[tool.setuptools.packages.find]
+include = ["its_cli*"]
+exclude = ["test*", "docs*", "examples*"]
+
+# Testing Configuration
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--strict-config",
+    "--cov=its_cli",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+    "--cov-report=xml",
+    "--cov-fail-under=80",
+    "--timeout=30",
+]
+testpaths = ["test"]
+markers = [
+    "slow: marks tests as slow",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+]
+
+# Code Quality Configuration
+[tool.black]
+line-length = 120
+target-version = ['py39', 'py310', 'py311', 'py312']
+include = '\.pyi?$'
+
+[tool.isort]
+profile = "black"
+line_length = 120
+src_paths = ["its_cli"]
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+check_untyped_defs = true
+strict_equality = true
+
+[[tool.mypy.overrides]]
+module = ["rich.*", "watchdog.*", "click.*"]
+ignore_missing_imports = true
+
+[tool.flake8]
+max-line-length = 120
+extend-ignore = [
+    "E203", # Whitespace before ':' (conflicts with black)
+    "W503", # Line break before binary operator (conflicts with black)
+    "E501", # Line too long (handled by black)
+]
+exclude = [
+    ".git",
+    "__pycache__",
+    ".venv",
+    "venv",
+    "build",
+    "dist",
+    "*.egg-info",
+]

@@ -579,25 +579,31 @@ def _is_safe_output_path(output_path: PathType) -> bool:
     try:
         # Resolve to absolute path
         resolved = output_path.resolve()
+        path_str = str(resolved)
 
-        # Check for dangerous patterns
-        dangerous_patterns = ["..", "%", "<", ">", "|", ":", '"', "?", "*"]
-        if any(pattern in str(resolved) for pattern in dangerous_patterns):
-            return False
+        # Check for dangerous patterns that could indicate path traversal or injection
+        # Note: Removed ":" from dangerous patterns as it's legitimate in Windows drive letters
+        dangerous_patterns = ["..", "%", "<", ">", "|", '"', "?", "*"]
+
+        for pattern in dangerous_patterns:
+            if pattern in path_str:
+                return False
 
         # Check if trying to write to system directories
-        system_dirs = {
-            "/etc",
-            "/bin",
-            "/sbin",
-            "/usr/bin",
-            "/usr/sbin",
-            "C:\\Windows",
-            "C:\\System32",
-        }
-        for sys_dir in system_dirs:
-            if str(resolved).startswith(sys_dir):
-                return False
+        import platform
+
+        if platform.system() == "Windows":
+            system_dirs = ["C:\\Windows", "C:\\System32", "C:\\Program Files", "C:\\Program Files (x86)"]
+            # Case-insensitive comparison for Windows
+            check_path = path_str.upper()
+            for sys_dir in system_dirs:
+                if check_path.startswith(sys_dir.upper()):
+                    return False
+        else:
+            system_dirs = ["/etc", "/bin", "/sbin", "/usr/bin", "/usr/sbin", "/proc", "/sys", "/dev", "/boot"]
+            for sys_dir in system_dirs:
+                if path_str.startswith(sys_dir):
+                    return False
 
         return True
     except Exception:

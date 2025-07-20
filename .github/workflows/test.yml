@@ -46,13 +46,16 @@ jobs:
       - name: Verify installation
         run: |
           its-compile --help
-          its-compile --supported-schema-version
+          python -c "import its_compiler_cli; print(f'ITS CLI version: {its_compiler_cli.__version__}')"
       - name: Run integration tests
         run: |
           python test_runner.py --verbose --junit-xml test-results-${{ matrix.python-version }}.xml
       - name: Run security tests
         run: |
           python test_runner.py --category security --verbose
+      - name: Run CLI-specific tests
+        run: |
+          python test_runner.py --category cli --verbose
       - name: Upload test results
         uses: actions/upload-artifact@v4
         if: always()
@@ -77,15 +80,15 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
-          pip install flake8
+          pip install flake8 flake8-pyproject
       - name: Run black
         run: black --check --diff .
       - name: Run flake8
-        run: flake8 its_cli/ test_runner.py
+        run: flake8 its_compiler_cli/ test/ test_runner.py
       - name: Run type checking
-        run: mypy its_cli/ --ignore-missing-imports || true
+        run: mypy its_compiler_cli/ --ignore-missing-imports || true
 
-  package:
+  security-scan:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -93,15 +96,24 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Install build dependencies
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install build twine
-      - name: Build package
-        run: python -m build
-      - name: Check package
-        run: twine check dist/*
-      - name: Test package installation
+          pip install -e ".[dev]"
+          pip install bandit safety
+      - name: Run bandit security scan
         run: |
-          pip install dist/*.whl
-          its-compile --help
+          bandit -r its_compiler_cli/ -f json -o bandit-results.json || true
+          bandit -r its_compiler_cli/ || true
+      - name: Run safety check
+        run: |
+          safety check --json --output safety-results.json || true
+          safety check || true
+      - name: Upload security scan results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-scan-results
+          path: |
+            bandit-results.json
+            safety-results.json

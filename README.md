@@ -1,7 +1,7 @@
 # ITS Compiler CLI
 
-[![PyPI version](https://badge.fury.io/py/its-compiler-cli-python.svg)](https://badge.fury.io/py/its-compiler-cli-python)
-[![Python](https://img.shields.io/pypi/pyversions/its-compiler-cli-python.svg)](https://pypi.org/project/its-compiler-cli-python/)
+[![PyPI version](https://badge.fury.io/py/its-compiler-cli.svg)](https://badge.fury.io/py/its-compiler-cli)
+[![Python](https://img.shields.io/pypi/pyversions/its-compiler-cli.svg)](https://pypi.org/project/its-compiler-cli/)
 [![License](https://img.shields.io/github/license/AlexanderParker/its-compiler-cli-python.svg)](LICENSE)
 
 Command-line interface for the [ITS Compiler Python](https://github.com/alexanderparker/its-compiler-python) library. Converts [Instruction Template Specification (ITS)](https://alexanderparker.github.io/instruction-template-specification/) templates into structured AI prompts.

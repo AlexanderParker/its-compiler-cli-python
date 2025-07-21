@@ -295,7 +295,7 @@ class TestRunner:
                 description="Template with undefined variable references",
                 should_pass=False,
                 expected_errors=["Undefined variable reference"],
-                test_validation_only=True,
+                test_validation_only=False,
                 test_category="error-handling",
             ),
             TestCase(

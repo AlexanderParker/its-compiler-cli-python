@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "its-compiler-cli"
-version = "0.2.0"
+version = "1.0.0"
 description = "Command-line interface for ITS Compiler - converts ITS templates to AI prompts"
 readme = { file = "README.md", content-type = "text/markdown" }
 license = "MIT"
@@ -72,13 +72,13 @@ Repository = "https://github.com/alexanderparker/its-compiler-cli-python.git"
 "Core Library" = "https://github.com/alexanderparker/its-compiler-python"
 
 [project.scripts]
-its-compile = "its_cli.main:main"
+its-compile = "its_compiler_cli.main:main"
 
 [tool.setuptools]
 package-dir = { "" = "." }
 
 [tool.setuptools.packages.find]
-include = ["its_cli*"]
+include = ["its_compiler_cli*"]
 exclude = ["test*", "docs*", "examples*"]
 
 # Testing Configuration
@@ -88,7 +88,7 @@ addopts = [
     "-ra",
     "--strict-markers",
     "--strict-config",
-    "--cov=its_cli",
+    "--cov=its_compiler_cli",
     "--cov-report=term-missing",
     "--cov-report=html",
     "--cov-report=xml",
@@ -111,7 +111,7 @@ include = '\.pyi?$'
 [tool.isort]
 profile = "black"
 line_length = 120
-src_paths = ["its_cli"]
+src_paths = ["its_compiler_cli"]
 
 [tool.mypy]
 python_version = "3.9"

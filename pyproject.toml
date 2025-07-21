@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "its-compiler-cli"
-version = "1.0.0"
+version = "1.0.4"
 description = "Command-line interface for ITS Compiler - converts ITS templates to AI prompts"
 readme = { file = "README.md", content-type = "text/markdown" }
 license = "MIT"
@@ -38,7 +38,7 @@ classifiers = [
 ]
 requires-python = ">=3.9"
 dependencies = [
-    "its-compiler>=1.0.0",
+    "its-compiler>=1.0.4",
     "click>=8.0.0",
     "rich>=13.0.0",
     "watchdog>=3.0.0",

@@ -93,10 +93,10 @@ TEMPLATE
 ## Installation
 
 ```bash
-pip install its-compiler-cli-python
+pip install its-compiler-cli
 ```
 
-This will automatically install the core [its-compiler-python](https://github.com/alexanderparker/its-compiler-python) library as a dependency.
+This will automatically install the core [its-compiler](https://github.com/alexanderparker/its-compiler-python) library as a dependency.
 
 ## CLI Reference
 

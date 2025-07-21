@@ -188,16 +188,56 @@ curl -O https://raw.githubusercontent.com/AlexanderParker/its-compiler-cli-pytho
 python test_runner.py
 ```
 
-## Integration with Core Library
+## Contributing
 
-For programmatic use, consider the core library directly:
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Make your changes and add tests
+4. Ensure all tests pass (`python test_runner.py`)
+5. Run linting (`black . && flake8`)
+6. Commit your changes
+7. Push to the branch and open a Pull Request
 
-```python
-from its_compiler import ITSCompiler
+### Development Setup
 
-compiler = ITSCompiler()
-result = compiler.compile_file('template.json')
-print(result.prompt)
+```bash
+# Clone and setup
+git clone https://github.com/AlexanderParker/its-compiler-cli-python.git
+cd its-compiler-cli-python
+
+# Create and activate virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install in development mode
+pip install -e ".[dev]"
+
+# Run tests
+python test_runner.py
+```
+
+### For Maintainers
+
+**Publishing to PyPI:**
+
+This package is published to PyPI as `its-compiler-cli`. Releases are currently managed manually:
+
+```bash
+# Build the package
+python -m build
+
+# Test upload to TestPyPI first (recommended)
+python -m twine upload --repository testpypi dist/*
+
+# Upload to production PyPI (requires appropriate credentials)
+python -m twine upload dist/*
+```
+
+**TestPyPI Testing:**
+
+```bash
+# Install from TestPyPI to verify the package
+pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ its-compiler-cli
 ```
 
 ## Related Projects

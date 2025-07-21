@@ -3,13 +3,13 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "its-compiler-cli-python"
-version = "0.1.0"
-description = "Command-line interface for ITS Compiler Python - converts ITS templates to AI prompts"
-readme = "README.md"
-license = { text = "MIT" }
-authors = [{ name = "Alexander Parker", email = "its-cli@parker.im" }]
-maintainers = [{ name = "Alexander Parker", email = "its-cli@parker.im" }]
+name = "its-compiler-cli"
+version = "0.2.0"
+description = "Command-line interface for ITS Compiler - converts ITS templates to AI prompts"
+readme = { file = "README.md", content-type = "text/markdown" }
+license = "MIT"
+authors = [{ name = "Alexander Parker", email = "pypi@parker.im" }]
+maintainers = [{ name = "Alexander Parker", email = "pypi@parker.im" }]
 keywords = [
     "its",
     "instruction",
@@ -24,10 +24,8 @@ keywords = [
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -40,7 +38,7 @@ classifiers = [
 ]
 requires-python = ">=3.9"
 dependencies = [
-    "its-compiler-python @ git+https://github.com/AlexanderParker/its-compiler-python.git",
+    "its-compiler>=1.0.0",
     "click>=8.0.0",
     "rich>=13.0.0",
     "watchdog>=3.0.0",

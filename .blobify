@@ -1,10 +1,59 @@
-# .blobify configuration (https://github.com/AlexanderParker/blobify) to include some files it usually excludes by default
+# .blobify configuration for ITS Compiler CLI Python project
+# This file configures how the blobify tool packages the codebase for AI analysis
 
-# include specific configuration files
-+.pre-commit-config.yaml
+# Default context - includes the entire codebase for comprehensive analysis
+@copy-to-clipboard=true
+@show-excluded=false
+@output-line-numbers=false
+@output-index=true
+@output-metadata=false
+@enable-scrubbing=false
+## Complete ITS Compiler CLI codebase including source code, tests, documentation, and CI/CD configuration
 
-# include github automations
-+.github/**
+# Base context that excludes everything - used for inheritance
+[nothing:default]
+-**
+## Base context that excludes all files, used as foundation for other contexts
 
-# include project configuration
+# Source code context - main application code and configuration
+[code:nothing]
++its_compiler_cli/**
 +pyproject.toml
++.pre-commit-config.yaml
+## Core application source code, package configuration, and development tools configuration
+
+# Test context - test files and test runners
+[tests:nothing]
++test_runner.py
++test/**
+## Test suite including integration tests, security tests, and test runners
+
+# CI/CD context - automation and deployment configuration
+[cicd:nothing]
++.github/**
++.pre-commit-config.yaml
++pyproject.toml
+## Continuous integration workflows, pre-commit hooks, and package configuration for automated builds
+
+# Documentation context - user and developer documentation
+[docs:nothing]
++README.md
++SECURITY.md
++docs/**
+## Project documentation including README, security policy, and any additional documentation
+
+# Minimal context - just the essential source files
+[minimal:nothing]
++its_compiler_cli/**
++pyproject.toml
+## Essential source code and package configuration only
+
+# Security context - security-related files and configurations
+[security:nothing]
++SECURITY.md
++.github/workflows/**
++.pre-commit-config.yaml
++test_runner.py
+@filter="bandit_config","bandit","*.toml"
+@filter="security_tests","security","test_runner.py"
+## Security documentation, CI security scans, and security-focused test configurations

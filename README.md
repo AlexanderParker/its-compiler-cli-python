@@ -62,6 +62,27 @@ Compile it:
 its-compile example.json
 ```
 
+### Published type libraries
+
+Templates import instruction types through `extends`. The specification publishes these libraries under `https://alexanderparker.github.io/instruction-template-specification/schema/v1.0/`:
+
+| Library        | File                         | Purpose                                                                       |
+| -------------- | ---------------------------- | ----------------------------------------------------------------------------- |
+| Standard Types | `its-standard-types-v1.json` | Prose content: titles, lists, paragraphs, tables, dialogue and more           |
+| JSON Types     | `its-json-types-v1.json`     | Raw JSON output: values, objects, arrays, JSON Schema documents               |
+| HTML Types     | `its-html-types-v1.json`     | Raw HTML fragments: containers, tables, lists, form fields (never full pages) |
+| YAML Types     | `its-yaml-types-v1.json`     | Raw YAML output: blocks, complete documents, markdown frontmatter             |
+
+The structured-output libraries instruct the model to emit raw output with no markdown code fences and no commentary, for example:
+
+```bash
+# A template extending the JSON types library
+its-compile api-response-template.json
+
+# Developing an unpublished type library locally
+its-compile template.json --allow-local-schemas
+```
+
 ## Command Reference
 
 ```
@@ -80,6 +101,8 @@ Options:
   --no-cache              Disable schema caching
   --timeout INTEGER       Network timeout in seconds (default: 30)
   --allow-http            Allow HTTP URLs (not recommended)
+  --allow-local-schemas   Allow extends to resolve local file paths
+                          relative to the template
   --interactive-allowlist / --no-interactive-allowlist
                           Enable/disable interactive schema prompts
   --allowlist-status      Show schema allowlist status

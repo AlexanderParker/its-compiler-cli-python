@@ -38,7 +38,7 @@ classifiers = [
 ]
 requires-python = ">=3.9"
 dependencies = [
-    "its-compiler>=1.1.0",
+    "its-compiler>=1.2.0",
     "click>=8.0.0",
     "rich>=13.0.0",
     "watchdog>=3.0.0",

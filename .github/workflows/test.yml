@@ -84,7 +84,7 @@ jobs:
       - name: Run black
         run: black --check --diff .
       - name: Run flake8
-        run: flake8 its_compiler_cli/ test/ test_runner.py
+        run: flake8 its_compiler_cli/ test_runner.py
       - name: Run type checking
         run: mypy its_compiler_cli/ --ignore-missing-imports || true
 

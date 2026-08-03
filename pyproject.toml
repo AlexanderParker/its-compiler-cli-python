@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "its-compiler-cli"
-version = "1.0.4"
+version = "1.1.0"
 description = "Command-line interface for ITS Compiler - converts ITS templates to AI prompts"
 readme = { file = "README.md", content-type = "text/markdown" }
 license = "MIT"
@@ -38,7 +38,11 @@ classifiers = [
 ]
 requires-python = ">=3.9"
 dependencies = [
-    "its-compiler>=1.0.4",
+    # Lower bound: 1.2.0 is the first release with the variable errors and
+    # reference data this CLI surfaces. Upper bound: the core is a library with
+    # a semver contract, so a major release may break this wrapper and must not
+    # be installed silently by an existing pin.
+    "its-compiler>=1.2.0,<2.0.0",
     "click>=8.0.0",
     "rich>=13.0.0",
     "watchdog>=3.0.0",

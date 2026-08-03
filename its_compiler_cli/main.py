@@ -269,6 +269,7 @@ def load_variables(variables_path: str) -> Dict[str, Any]:
 
 def create_security_config(
     allow_http: bool,
+    allow_local_schemas: bool,
     interactive_allowlist: Optional[bool],
     strict_mode: bool,
 ) -> SecurityConfig:
@@ -281,6 +282,9 @@ def create_security_config(
     if allow_http:
         config.network.allowed_protocols.add("http")
         config.network.allow_http = True
+
+    if allow_local_schemas:
+        config.allow_local_schemas()
 
     if interactive_allowlist is not None:
         config.allowlist.interactive_mode = interactive_allowlist
@@ -636,6 +640,11 @@ def _is_safe_output_path(output_path: PathType) -> bool:
     help="Allow HTTP URLs (not recommended for production)",
 )
 @click.option(
+    "--allow-local-schemas",
+    is_flag=True,
+    help="Allow extends to resolve local file paths relative to the template",
+)
+@click.option(
     "--interactive-allowlist/--no-interactive-allowlist",
     default=None,
     help="Enable/disable interactive schema allowlist prompts",
@@ -696,6 +705,7 @@ def main(
     no_cache: bool,
     timeout: int,
     allow_http: bool,
+    allow_local_schemas: bool,
     interactive_allowlist: Optional[bool],
     security_report: Optional[PathType],
     supported_schema_version: bool,
@@ -722,7 +732,7 @@ def main(
         return
 
     # Create security configuration
-    security_config = create_security_config(allow_http, interactive_allowlist, strict)
+    security_config = create_security_config(allow_http, allow_local_schemas, interactive_allowlist, strict)
 
     # Validate security configuration
     config_warnings = security_config.validate()

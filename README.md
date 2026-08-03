@@ -62,6 +62,27 @@ Compile it:
 its-compile example.json
 ```
 
+### Published type libraries
+
+Templates import instruction types through `extends`. The specification publishes these libraries under `https://alexanderparker.github.io/instruction-template-specification/schema/v1.0/`:
+
+| Library        | File                         | Purpose                                                                                                                                |
+| -------------- | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Standard Types | `its-standard-types-v1.json` | Prose content: titles, lists, paragraphs, tables, dialogue and more                                                                    |
+| JSON Types     | `its-json-types-v1.json`     | Value fills inside JSON structure authored in the template: json_string, json_number, json_value, json_array_items, json_object_fields |
+| HTML Types     | `its-html-types-v1.json`     | Fills inside literal markup: html_text, html_fragment, html_list_items, html_table_rows, html_form_fields                              |
+| YAML Types     | `its-yaml-types-v1.json`     | Fills inside literal YAML: yaml_value, yaml_list_items, yaml_block                                                                     |
+
+The structured-output libraries instruct the model to emit raw output with no markdown code fences and no commentary, for example:
+
+```bash
+# A template extending the JSON types library
+its-compile api-response-template.json
+
+# Developing an unpublished type library locally
+its-compile template.json --allow-local-schemas
+```
+
 ## Command Reference
 
 ```
@@ -80,9 +101,25 @@ Options:
   --no-cache              Disable schema caching
   --timeout INTEGER       Network timeout in seconds (default: 30)
   --allow-http            Allow HTTP URLs (not recommended)
+  --allow-local-schemas   Allow extends to resolve local file paths
+                          relative to the template
   --interactive-allowlist / --no-interactive-allowlist
                           Enable/disable interactive schema prompts
+  --security-report FILE  Generate security analysis report to specified file
+  --supported-schema-version
+                          Show the supported ITS specification version and exit
   --allowlist-status      Show schema allowlist status
+  --add-trusted-schema URL
+                          Add a schema URL to the permanent allowlist and exit
+  --remove-schema URL     Remove a schema URL from the allowlist and exit
+  --export-allowlist FILE
+                          Export allowlist to specified file and exit
+  --import-allowlist FILE
+                          Import allowlist from specified file and exit
+  --merge-allowlist       Merge imported allowlist with existing
+                          (use with --import-allowlist)
+  --cleanup-allowlist     Remove old unused allowlist entries and exit
+  --older-than DAYS       Days threshold for cleanup (default: 90)
   --version               Show version and exit
   --help                  Show help and exit
 ```
@@ -151,6 +188,21 @@ export ITS_INTERACTIVE_ALLOWLIST=false  # Disable prompts
 export ITS_REQUEST_TIMEOUT=60           # Increase timeout
 export ITS_ALLOWLIST_FILE=/path/to/allowlist.json
 ```
+
+The CLI honours the core library's full `ITS_*` environment surface. Alongside the three above:
+
+- `ITS_ALLOW_HTTP` - Allow HTTP URLs
+- `ITS_ALLOW_LOCAL_SCHEMAS` - Allow extends to resolve local file paths relative to the template
+- `ITS_BLOCK_LOCALHOST` - Block localhost access
+- `ITS_DOMAIN_ALLOWLIST` - Comma-separated allowed domains
+- `ITS_MAX_TEMPLATE_SIZE` - Max template size in bytes
+- `ITS_MAX_CONTENT_ELEMENTS` - Max content elements
+- `ITS_MAX_NESTING_DEPTH` - Max content/variable nesting depth
+- `ITS_MAX_VARIABLE_COUNT` - Max total variables including nested values
+- `ITS_MAX_VARIABLE_ARRAY_ITEMS` - Max items per variable array
+- `ITS_MAX_TEXT_LENGTH` - Max length of a text element or string value
+- `ITS_DISABLE_ALLOWLIST` - Disable schema allowlist
+- `ITS_DISABLE_INPUT_VALIDATION` - Disable input validation
 
 ## Error Examples
 
@@ -240,11 +292,15 @@ python -m twine upload dist/*
 pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ its-compiler-cli
 ```
 
-## Related Projects
+## ITS ecosystem
 
-- **[ITS Compiler Python](https://github.com/alexanderparker/its-compiler-python)** - Core library
-- **[Instruction Template Specification](https://alexanderparker.github.io/instruction-template-specification/)** - Official specification
-- **[ITS Example Templates](https://github.com/AlexanderParker/its-example-templates)** - Example templates
+- [Specification](https://alexanderparker.github.io/instruction-template-specification/) - the ITS spec, schemas and documentation ([source](https://github.com/AlexanderParker/instruction-template-specification))
+- [Template studio demo](https://alexanderparker.github.io/its-template-studio/) - build and compile templates in the browser ([source](https://github.com/AlexanderParker/its-template-studio))
+- [its-template-editor](https://github.com/AlexanderParker/its-wysiwyg-common) - the WYSIWYG React editor component behind the studio
+- [its-compiler-js](https://github.com/AlexanderParker/its-compiler-js) - JavaScript/TypeScript reference compiler ([npm](https://www.npmjs.com/package/its-compiler-js))
+- [its-compiler-python](https://github.com/AlexanderParker/its-compiler-python) - Python reference compiler library ([PyPI](https://pypi.org/project/its-compiler/))
+- [its-compiler-dotnet](https://github.com/AlexanderParker/its-compiler-dotnet) - .NET compiler with ASP.NET service and Azure Functions samples (NuGet publication pending)
+- [its-example-templates](https://github.com/AlexanderParker/its-example-templates) - example and test templates exercising the published schemas
 
 ## License
 

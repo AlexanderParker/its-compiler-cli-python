@@ -294,7 +294,11 @@ class TestRunner:
                 file_url=f"{base}/templates/invalid/03-undefined-variables.json",
                 description="Template with undefined variable references",
                 should_pass=False,
-                expected_errors=["Undefined variable reference"],
+                # its-compiler 1.2.0 names the variable and where it looked,
+                # for example "Variable 'undefinedVar' not found in root",
+                # rather than reporting a generic message. The older wording is
+                # kept so this still passes against 1.0.x.
+                expected_errors=["not found", "Undefined variable reference"],
                 test_validation_only=False,
                 test_category="error-handling",
             ),

@@ -299,7 +299,7 @@ pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://
 - [its-template-editor](https://github.com/AlexanderParker/its-wysiwyg-common) - the WYSIWYG React editor component behind the studio
 - [its-compiler-js](https://github.com/AlexanderParker/its-compiler-js) - JavaScript/TypeScript reference compiler ([npm](https://www.npmjs.com/package/its-compiler-js))
 - [its-compiler-python](https://github.com/AlexanderParker/its-compiler-python) - Python reference compiler library ([PyPI](https://pypi.org/project/its-compiler/))
-- [its-compiler-dotnet](https://github.com/AlexanderParker/its-compiler-dotnet) - .NET compiler with ASP.NET service and Azure Functions samples (NuGet publication pending)
+- [its-compiler-dotnet](https://github.com/AlexanderParker/its-compiler-dotnet) - .NET compiler with ASP.NET service and Azure Functions samples ([NuGet](https://www.nuget.org/packages/InstructionTemplateSpecification.Compiler))
 - [its-example-templates](https://github.com/AlexanderParker/its-example-templates) - example and test templates exercising the published schemas
 
 ## License

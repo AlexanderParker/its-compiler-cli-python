@@ -5,10 +5,11 @@ Command-line interface for the ITS Compiler Python library.
 Converts Instruction Template Specification (ITS) templates into structured AI prompts.
 """
 
-__version__ = "1.1.0"
+from ._version import __version__
+
 __author__ = "Alexander Parker"
 __email__ = "pypi@parker.im"
 
 from .main import main
 
-__all__ = ["main"]
+__all__ = ["main", "__version__"]

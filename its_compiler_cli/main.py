@@ -37,7 +37,7 @@ from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 
 # CLI version
-__version__ = "0.1.0"
+from ._version import __version__  # noqa: E402
 
 
 def setup_safe_console() -> Tuple[Console, bool]:
